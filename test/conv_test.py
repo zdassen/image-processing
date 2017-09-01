@@ -26,6 +26,9 @@ def test1():
     
     # 画像を読み込む (グレースケール)
     img_type = "conv_sample"
+    # img_type = "lenna"
+    # img_type = "dassen_blog"
+    # img_type = "cpu"
     img, original = load_with_orig(img_type)
     img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
 
@@ -39,13 +42,14 @@ def test1():
     fc = filter_conv_sample()
 
     # 畳み込み処理を行う
-    img_result = conv_gray(img, fc)
+    img_result = conv_gray(img, fc, stride=15, padding=False)
 
     # 結果を確認する
-    check_result = False
+    check_result = True
     if check_result:
-        plt.imshow(img_result, cmap=plt.cm.gray)
-        plt.show()
+        images = (original, img_result)
+        titles = ("Original", "Convolution")
+        collate(images, titles, nr=1, nc=2)
 
 
 def test2():
@@ -68,6 +72,15 @@ def test2():
         images = (original, img_result,)
         titles = ("Original", "Convolution",)
         collate(images, titles, nr=1, nc=2)
+
+
+def test3():
+    """ストライドが1より大きい場合の畳み込み演算"""
+
+    # 画像を読み込む (グレースケール)
+    img_type = "conv_sample"
+    img, original = load_with_orig(img_type)
+    img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
 
 
 def perf_test():
@@ -129,6 +142,7 @@ def perf_test():
 
 
 if __name__ == '__main__':
-    # test1()
+    test1()
     # test2()
-    perf_test()
+    # test3()
+    # perf_test()

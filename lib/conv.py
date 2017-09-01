@@ -5,13 +5,17 @@
 import numpy as np
 
 
-def pad(img, gap):
-    """1方向にgapだけ、画像の周囲を0で埋める"""
+def pad(img, gap, n=0):
+    """各方向にgapだけ、画像の周囲をnで埋める"""
 
     # 画像サイズ & パディング後の画像のサイズ
     img_rows, img_cols = img.shape
-    shape_new = (img_rows + gap * 2, img_cols + gap * 2)
-    img_new = np.zeros(shape_new)
+    shape_new = [
+        size + gap * 2 for size in (img_rows, img_cols)
+    ]
+
+    # 新しい画像
+    img_new = np.ones(shape_new).astype("float32") * n
 
     # 元の画像を埋め込む
     img_new[gap:gap+img_rows, gap:gap+img_cols] = img
@@ -26,35 +30,46 @@ def assign(pos_vals, img):
     return img
 
 
-def conv_gray(img, _filter):
+def conv_gray(img, _filter, stride=1, padding=False, n=0):
     """画像の畳み込み処理を行う (グレースケールの場合)"""
-    
+
     # フィルターの縦横サイズは同じ
     k, _ = _filter.shape
     assert k == _
 
+    # 元の画像サイズ
+    img_rows, img_cols = img.shape
+
     # フィルターが画像からはみ出る分
     gap = int(k / 2)
 
-    # パディングを行う
-    img_pad = pad(img, gap)
+    # パディングを行う場合
+    if padding:
+        img_pad = pad(img, gap, n=n)
+    else:
+        img_pad = img.copy()
 
-    # 画像のサイズ
+    # パディング後の画像サイズ (行った場合のみ)
     img_pad_rows, img_pad_cols = img_pad.shape
 
-    # フィルターの位置と畳み込み後の値を保持する
+    # 畳み込み後の位置と値を保持する
     pos_vals = []
 
-    # 処理結果となる画像
-    # (パディング前のサイズ)
-    img_result = np.zeros_like(img)
+    # 畳み込み後の、値がセットされる位置 (行)
+    # 畳み込み演算によって求められた値の数だけ
+    # 行数、列数があればよいのでカウントする
+    # strideで飛び飛びに計算してもカウントすれば足りる
+    i_cur = 0
 
     # フィルターを適用する
     # (i, j) はフィルターの左上のインデックス
-    # フィルターは画像をはみ出ない
-    for i in range(img_pad_rows - k + 1):
-        for j in range(img_pad_cols - k + 1):
-            
+    for i in range(0, img_pad_rows - k + 1, stride):
+
+        # 畳み込み後の、値がセットされる位置 (列)
+        j_cur = 0
+
+        for j in range(0, img_pad_cols - k + 1, stride):
+
             # フィルターの適用範囲
             target_area = img_pad[i:i+k, j:j+k]
 
@@ -62,12 +77,22 @@ def conv_gray(img, _filter):
             filtered_area = target_area * _filter
             sum_area = np.sum(filtered_area)
 
-            # フィルター位置 (=パディング前の画像における位置) と
-            # 畳み込み後の値を登録
-            pos_vals.append((i, j, sum_area))
+            # 畳み込み後の位置、値を記録させる
+            pos_vals.append((i_cur, j_cur, sum_area))
+            j_cur += 1
 
         # end of for j in range...
+
+        i_cur += 1
+
     # end of for i in range...
+
+    # 処理結果の画像のサイズ
+    result_shape = (i_cur, j_cur)
+    assert len(pos_vals) == i_cur * j_cur
+
+    # 処理結果の画像
+    img_result = np.zeros(result_shape)
 
     # 計算後の値を代入
     img_result = assign(pos_vals, img_result)
